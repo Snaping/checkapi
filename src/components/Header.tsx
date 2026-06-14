@@ -1,11 +1,19 @@
-import { Plus, FileJson, Zap } from 'lucide-react';
+import { Plus, FileJson, Zap, Upload } from 'lucide-react';
 import { useReviewStore } from '@/store/useReviewStore';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
-const Header = () => {
+interface HeaderProps {
+  onImportClick: () => void;
+}
+
+const Header = ({ onImportClick }: HeaderProps) => {
   const { currentReview, createNewReview, updateApiName, loadPresetSpecifications } =
     useReviewStore();
   const [apiName, setApiName] = useState(currentReview?.apiName || '');
+
+  useEffect(() => {
+    setApiName(currentReview?.apiName || '');
+  }, [currentReview?.id, currentReview?.apiName]);
 
   const handleApiNameChange = (value: string) => {
     setApiName(value);
@@ -53,6 +61,13 @@ const Header = () => {
         </div>
 
         <div className="flex items-center gap-3">
+          <button
+            onClick={onImportClick}
+            className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg hover:from-purple-600 hover:to-pink-600 transition-all shadow-md hover:shadow-lg active:scale-95"
+          >
+            <Upload className="w-4 h-4" />
+            导入文档
+          </button>
           <button
             onClick={handleLoadPreset}
             className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-lg hover:from-amber-600 hover:to-orange-600 transition-all shadow-md hover:shadow-lg active:scale-95"
