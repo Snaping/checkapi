@@ -1,23 +1,69 @@
-import { Plus, FileJson, Zap, Upload } from 'lucide-react';
+import { Plus, FileJson, Zap, Upload, Loader2 } from 'lucide-react';
 import { useReviewStore } from '@/store/useReviewStore';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 
 interface HeaderProps {
   onImportClick: () => void;
 }
 
 const Header = ({ onImportClick }: HeaderProps) => {
-  const { currentReview, createNewReview, updateApiName, loadPresetSpecifications } =
+  const { currentReview, createNewReview, updateApiName, loadPresetSpecifications, applyAutoReview } =
     useReviewStore();
   const [apiName, setApiName] = useState(currentReview?.apiName || '');
+  const [isAutoReviewing, setIsAutoReviewing] = useState(false);
+  const debounceRef = useRef<number | null>(null);
+  const autoReviewTriggeredRef = useRef(false);
 
   useEffect(() => {
     setApiName(currentReview?.apiName || '');
+    autoReviewTriggeredRef.current = false;
   }, [currentReview?.id, currentReview?.apiName]);
+
+  const tryAutoReview = useCallback((content: string) => {
+    const trimmed = content.trim();
+    
+    if (!trimmed.startsWith('{')) {
+      return;
+    }
+
+    if (!trimmed.includes('openapi') && !trimmed.includes('swagger')) {
+      return;
+    }
+
+    setIsAutoReviewing(true);
+    
+    try {
+      const success = applyAutoReview(trimmed);
+      if (success) {
+        autoReviewTriggeredRef.current = true;
+      }
+    } catch (e) {
+      // 解析失败，忽略
+    } finally {
+      setTimeout(() => setIsAutoReviewing(false), 300);
+    }
+  }, [applyAutoReview]);
 
   const handleApiNameChange = (value: string) => {
     setApiName(value);
-    updateApiName(value);
+
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+    }
+
+    if (autoReviewTriggeredRef.current) {
+      updateApiName(value);
+      return;
+    }
+
+    debounceRef.current = window.setTimeout(() => {
+      const trimmed = value.trim();
+      if (trimmed.startsWith('{') && (trimmed.includes('openapi') || trimmed.includes('swagger'))) {
+        tryAutoReview(trimmed);
+      } else {
+        updateApiName(value);
+      }
+    }, 500);
   };
 
   const handleNewReview = () => {
@@ -25,6 +71,7 @@ const Header = ({ onImportClick }: HeaderProps) => {
     if (name !== null) {
       createNewReview(name);
       setApiName(name);
+      autoReviewTriggeredRef.current = false;
     }
   };
 
@@ -49,14 +96,24 @@ const Header = ({ onImportClick }: HeaderProps) => {
           <div className="flex-1 max-w-md ml-12">
             <label className="block text-sm font-medium text-slate-600 mb-1.5">
               API 名称
+              <span className="text-xs text-slate-400 font-normal ml-2">
+                （粘贴 OpenAPI JSON 可自动评审）
+              </span>
             </label>
-            <input
-              type="text"
-              value={apiName}
-              onChange={(e) => handleApiNameChange(e.target.value)}
-              placeholder="请输入 API 名称..."
-              className="w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-slate-800 placeholder-slate-400"
-            />
+            <div className="relative">
+              <input
+                type="text"
+                value={apiName}
+                onChange={(e) => handleApiNameChange(e.target.value)}
+                placeholder="请输入 API 名称，或粘贴 OpenAPI JSON..."
+                className="w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-slate-800 placeholder-slate-400 pr-10"
+              />
+              {isAutoReviewing && (
+                <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                  <Loader2 className="w-5 h-5 text-blue-500 animate-spin" />
+                </div>
+              )}
+            </div>
           </div>
         </div>
 

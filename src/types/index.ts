@@ -34,6 +34,7 @@ export interface ReviewActions {
   addSpecification: (spec: Omit<SpecificationItem, 'id'>) => void;
   removeSpecification: (id: string) => void;
   loadPresetSpecifications: () => void;
+  applyAutoReview: (content: string) => boolean;
   exportReport: (format: 'json' | 'text') => void;
   calculatePassRate: () => number;
   loadFromStorage: () => void;

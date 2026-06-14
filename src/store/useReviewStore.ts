@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { ReviewStore, ReviewRecord, SpecificationItem } from '@/types';
 import { presetSpecifications } from '@/data/presetSpecs';
 import { storage } from '@/utils/storage';
+import { autoReviewOpenAPI } from '@/utils/autoReview';
 
 const generateId = (): string => {
   return Date.now().toString(36) + Math.random().toString(36).substr(2);
@@ -191,6 +192,32 @@ export const useReviewStore = create<ReviewStore>((set, get) => ({
       r.id === updated.id ? updated : r
     );
     set({ currentReview: updated, history: updatedHistory });
+  },
+
+  applyAutoReview: (content: string) => {
+    const result = autoReviewOpenAPI(content);
+    if (!result) return false;
+
+    const { createNewReview } = get();
+    createNewReview(result.apiName);
+
+    const review = get().currentReview;
+    if (!review) return false;
+
+    const specItems = result.specifications.map(createSpecificationItem);
+    const updated = {
+      ...review,
+      apiName: result.apiName,
+      specifications: specItems,
+      updatedAt: Date.now()
+    };
+    storage.setCurrentReview(updated);
+    storage.addToHistory(updated);
+    const updatedHistory = get().history.map((r) =>
+      r.id === updated.id ? updated : r
+    );
+    set({ currentReview: updated, history: updatedHistory });
+    return true;
   },
 
   calculatePassRate: () => {
